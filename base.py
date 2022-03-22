@@ -128,10 +128,14 @@ class Gothic:
         self.values['iAccuracyVar'] = tk.IntVar()
         self.values['iAccuracyVar'].set(3)
         self.widgets['itemAccuracySpin'] = ttk.Spinbox(tabA,from_=0,to=15,textvariable=self.values['iAccuracyVar'],state="disabled",width=3)
-        self.randoItemsAtkLabel = ttk.Label(tabA,text="Damage Stats")
+        self.randoItemsAtkLabel = ttk.Label(tabA,text="Damage Range")
         self.values['iAttackVar'] = tk.IntVar()
-        self.values['iAttackVar'].set(2)
-        self.widgets['itemAttackSpin'] = ttk.Spinbox(tabA,from_=0,to=6,textvariable=self.values['iAttackVar'],state="disabled",width=3)
+        self.values['iAttackVar'].set(4)
+        self.widgets['itemAttackSpin'] = ttk.Spinbox(tabA,from_=0,to=20,textvariable=self.values['iAttackVar'],state="disabled",width=3)
+        self.randoItemsStrikesLabel = ttk.Label(tabA,text="Strikes")
+        self.values['iStrikesVar'] = tk.IntVar()
+        self.values['iStrikesVar'].set(0)
+        self.widgets['itemStrikesSpin'] = ttk.Spinbox(tabA,from_=0,to=6,textvariable=self.values['iStrikesVar'],state="disabled",width=3)
         
         self.values['iSpellChange'] = tk.BooleanVar()
         self.values['iSpellChange'].set(False)
@@ -166,7 +170,9 @@ class Gothic:
         itemAccuracy_tooltip = CreateToolTip(self.widgets['itemAccuracySpin'], \
         "Randomizes weapons' Accuracy score.")
         itemAttack_tooltip = CreateToolTip(self.widgets['itemAttackSpin'], \
-        "Randomizes weapons' damage range and number of strikes.")
+        "Adds between +/- the given values to weapons' damage ranges..")
+        itemStrikes_tooltip = CreateToolTip(self.widgets['itemStrikesSpin'], \
+        "Randomizes weapons' base number of strikes.")
         itemSpell_tooltip = CreateToolTip(self.widgets['itemSpellBox'], \
         "Randomize the spells that are invoked by spell-casting items."
         "\nSpells' chance of appearing are based on their strength.")
@@ -192,6 +198,8 @@ class Gothic:
         self.widgets['itemAccuracySpin'].grid(row=4,column=2,sticky=tk.W)
         self.randoItemsAtkLabel.grid(row=5,column=1,sticky=tk.E)
         self.widgets['itemAttackSpin'].grid(row=5,column=2,sticky=tk.W)
+        self.randoItemsStrikesLabel.grid(row=6,column=1,sticky=tk.E)
+        self.widgets['itemStrikesSpin'].grid(row=6,column=2,sticky=tk.W)
         
         self.widgets['itemShopBox'].grid(row=1,column=4)
         self.widgets['itemPriceBox'].grid(row=2,column=4)
@@ -354,11 +362,11 @@ class Gothic:
         return
         
     def iStatsNo(self):
-        self.disableWidgets(['itemACSpin','itemAccuracySpin','itemAttackSpin'])
+        self.disableWidgets(['itemACSpin','itemAccuracySpin','itemAttackSpin','itemStrikesSpin'])
         return
         
     def iStatsVariance(self):
-        self.enableWidgets(['itemACSpin','itemAccuracySpin','itemAttackSpin'])
+        self.enableWidgets(['itemACSpin','itemAccuracySpin','itemAttackSpin','itemStrikesSpin'])
         return
         
     def iSpellToggle(self):
@@ -609,11 +617,11 @@ def randoItems(settings):
         #Randomizing shop availability
         #Only for items not already in shop
         if settings['iShopMode'] == True and item[6].isnumeric() and int(item[6]) == 0 and p > 5 and i not in eld.RestrictedItems:
-            shopChance = max(8,int(p ** 0.65))#p being item's unrandomized price
+            shopChance = max(5,int(p ** 0.6))#p being item's unrandomized price
             #If item is added to shop, quadruple its price
             if random.randrange(shopChance) == 0:
                  item[6] = int(item[6]) + 1
-                 item[7] = item[7] * 4
+                 item[7] = int(item[7]) * 4
         
         #Randomize item combat stats
         if settings['iStatMode'] == 1:
@@ -622,55 +630,54 @@ def randoItems(settings):
             
             acFac = settings['iACVar']
             a = int(item[55])
-            if (iType in eld.ArmorTypes) or (random.randrange(0,8) == 0):
+            if (iType in eld.ArmorTypes) or (iType < 14 and random.randrange(0,8) == 0):
                 item[55] = a + random.randrange(-acFac,acFac+1)
                 
                     
             #Randomize Accuracy, Damage and Strikes
-            #Only randomize if base Strikes # is nonzero and item is not a monster weapon
+            #Only randomize if base Strikes # is nonzero
             strikes = int(item[66])
-            attackRand = settings['iAttackVar']
-            if strikes != 0 and iType != 34 and attackRand > 0:
+            if strikes != 0:
                 acc = int(item[60])
                 sides = int(item[61])
                 dice = int(item[62])
                 corr = int(item[63])
                 accFac = settings['iAccuracyVar']
-                sideFac = diceFac = corrFac = strikeFac = attackRand
+                strikeFac = settings['iStrikesVar']
+                damFac = settings['iAttackVar']
             
-                #sides, dice, strikes must be at least 1
-                #correction cannot be more negative than the number of dice
+                
                 item[60] = acc + random.randrange(-accFac,accFac+1)
+                
+                
+                #randomizing damage range
+                #sides, dice, strikes must be at least 1
+                maxDam = min(int(item[65]) + random.randint(-damFac,damFac),127)
+                minDam = min(max(int(item[64]) + random.randint(-damFac,damFac),1),maxDam)
+
+                
+                #With our new min/max, we recalculate sides/dice/correction
+                damWindow = maxDam - minDam
+                dice = 1
+                sides = 1
+                factors = eld.DiceTo127[damWindow]
+                pair = random.choice(factors)
+                dice = pair[0]
+                sides = pair[1]
+                corr = maxDam - (dice*sides)
+                
+
             
-                #Dice + correction must be positive
-                #Dice*Sides + correction must be < 128
-                #Some vanilla items violate this principle; for safety's sake we'll clamp corr
-                dice = max(dice + random.randrange(-diceFac,diceFac+1),1)
-                if (corr + dice) < 1:
-                    corr = -dice + 1
-                
-                corrMin = max((-dice+1),corr-corrFac)
-                corrMax = min(128-dice,corr+corrFac)
-                corr = random.randrange(corrMin,corrMax+1)
-                sidesMin = max(sides-sideFac,1)
-                sidesMax = int(min(sides+sideFac,(127-corr)/dice))
-                
-                if sidesMin > sidesMax:
-                    sidesMin = sidesMax
-                    #print("Dice sides too large: {}".format(item[4]))
-                
-                sides = random.randrange(sidesMin,sidesMax+1)
-                
                 item[61] = sides
                 item[62] = dice
                 item[63] = corr
             
                 #Min,Max damage values are display-only
                 #We calc them here based off the sides/dice/correction values
-                item[64] = dice + corr
-                item[65] = item[61] * item[62] + item[63]
+                item[64] = minDam
+                item[65] = maxDam
                 #Strikes capped at 10
-                item[66] = min(max(strikes + random.randrange(-strikeFac,strikeFac+1),1),10)
+                item[66] = min(max(strikes + random.randint(-strikeFac,strikeFac),1),10)
         
         
         #adding negative modifiers
@@ -1044,9 +1051,14 @@ def randoMonsters(settings):
     newMFiles = [newMFileA,newMFileB,newMFileC]
     if settings['mMode'] == True:
         
-        mList = [m for m in range(429) if m not in eld.RestrictedMonsters]
+        mList = [m for m in range(429) if m not in (eld.RestrictedMonsters + eld.FloatingMonsters)]
+        fList = [f for f in range(429) if f not in (eld.RestrictedMonsters + mList)]
         mRand = mList.copy()
+        fRand = fList.copy()
         random.shuffle(mRand)
+        random.shuffle(fRand)
+        mList = mList + fList
+        mRand = mRand + fRand
         levelList = [0]*429
         #collect the levels of all monsters before we start moving data around
         for x in range(len(mList)):
@@ -1256,10 +1268,10 @@ def translateWeapon(level,oldLvl,initWeapon,isSub=False):
     '''Gives enemy a weapon of matching type and appropriate power for their level.'''
     if initWeapon in eld.Swords:#Swords get special handling
         currIndex = eld.Swords.index(initWeapon)
-        diff = int(math.sqrt(abs(level - oldLvl)))
+        diff = int((abs(level - oldLvl))*0.6)
         
         if diff != 0:
-            diff = random.randint(diff//4,diff)
+            diff = random.randint(diff//2,diff)
         if level < oldLvl: diff = -diff
         newIndex = max(min(currIndex + diff,len(eld.Swords)-1),0)
         return eld.Swords[newIndex]
