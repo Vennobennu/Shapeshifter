@@ -36,7 +36,7 @@ class Gothic:
             pass
         center_x = str(int(self.master.winfo_screenwidth()/2 - 450))
         center_y = str(int(self.master.winfo_screenheight()/2 - 253))
-        self.master.geometry(f"830x356+{center_x}+{center_y}")
+        self.master.geometry(f"830x464+{center_x}+{center_y}")
         self.buildUI()
         self.master.mainloop()
         
@@ -158,6 +158,21 @@ class Gothic:
         self.values['iShopMode'].set(False)
         self.widgets['itemShopBox'] = ttk.Checkbutton(tabA,text="Randomize shop inventory",variable=self.values['iShopMode'],state="normal")
         
+        
+        #self.itemBlurseChanceLabel = ttk.Label(tabA,text="Apply item modifiers (%)")
+        #self.values['iBlurseChance'] = tk.IntVar()
+        #self.values['iBlurseChance'].set(0)
+        #self.widgets['itemBlurseChanceSpin'] = ttk.Spinbox(tabA,from_=0,to=100,increment=2,textvariable=self.values['iBlurseChance'],state="readonly",width=3)
+        #
+        #self.itemBonusLabel = ttk.Label(tabA,text="Bonuses:")
+        #self.itemMalusLabel = ttk.Label(tabA,text="Maluses:")
+        #self.values['iBonusCount'] = tk.IntVar()
+        #self.values['iBonusCount'].set(2)
+        #self.widgets['itemBonusScale'] = tk.Scale(tabA,from_=0,to=5,orient=tk.HORIZONTAL,length=60,variable=self.values['iBonusCount'],state="normal")
+        #self.values['iMalusCount'] = tk.IntVar()
+        #self.values['iMalusCount'].set(1)
+        #self.widgets['itemMalusScale'] = tk.Scale(tabA,from_=0,to=4,orient=tk.HORIZONTAL,length=55,variable=self.values['iMalusCount'],state="normal")
+        
         mItemBan_tooltip = CreateToolTip(self.widgets['monsterItemBanBox'], \
         "Excludes generic monster weapons (Slash, Charge etc) from randomization."
         "\nOther enemy-only gear will still be included.")
@@ -185,6 +200,11 @@ class Gothic:
         itemShop_tooltip = CreateToolTip(self.widgets['itemShopBox'], \
         "Randomly adds items to the shop's starting inventory."
         "\nChance rises with the inverse of the item's price.")
+        #itemBlursed_tooltip = CreateToolTip(self.widgets['itemBlurseChanceSpin'], \
+        #"For each item, sets a chance out of a hundred for bonuses and maluses to be applied (elemental affinities, effectiveness, status ailments, etc).")
+        
+        
+        
         
         #TabA layout
         
@@ -200,6 +220,13 @@ class Gothic:
         self.widgets['itemAttackSpin'].grid(row=5,column=2,sticky=tk.W)
         self.randoItemsStrikesLabel.grid(row=6,column=1,sticky=tk.E)
         self.widgets['itemStrikesSpin'].grid(row=6,column=2,sticky=tk.W)
+        
+        #self.itemBlurseChanceLabel.grid(row=7,column=1,columnspan=2)
+        #self.widgets['itemBlurseChanceSpin'].grid(row=7,column=3,sticky=tk.W)
+        #self.itemBonusLabel.grid(row=8,column=1,sticky=tk.E)
+        #self.itemMalusLabel.grid(row=9,column=1,sticky=tk.E)
+        #self.widgets['itemBonusScale'].grid(row=8,column=2)
+        #self.widgets['itemMalusScale'].grid(row=9,column=2)
         
         self.widgets['itemShopBox'].grid(row=1,column=4)
         self.widgets['itemPriceBox'].grid(row=2,column=4)
@@ -646,73 +673,55 @@ def randoItems(settings):
                 strikeFac = settings['iStrikesVar']
                 damFac = settings['iAttackVar']
             
-                
+                #Randomizing accuracy
                 item[60] = acc + random.randrange(-accFac,accFac+1)
-                
                 
                 #randomizing damage range
                 #sides, dice, strikes must be at least 1
-                maxDam = min(int(item[65]) + random.randint(-damFac,damFac),127)
-                minDam = min(max(int(item[64]) + random.randint(-damFac,damFac),1),maxDam)
-
+                if damFac > 0:
+                    maxDam = int(item[65])
+                    maxDam = random.randint(max(maxDam-damFac,1),min(maxDam+damFac,127))
+                    minDam = min(max(int(item[64]) + random.randint(-damFac,damFac),1),maxDam)
+                    
+                    
+                    #With our new min/max, we recalculate sides/dice/correction
+                    damWindow = maxDam - minDam
+                    dice = 1
+                    sides = 1
+                    factors = eld.DiceTo127[damWindow]
+                    pair = random.choice(factors)
+                    dice = pair[0]
+                    sides = pair[1]
+                    corr = maxDam - (dice*sides)
+                    
+                    item[61] = sides
+                    item[62] = dice
+                    item[63] = corr
+                    
+                    #Min,Max damage values are display-only
+                    #We calc them here based off the sides/dice/correction values
+                    item[64] = minDam
+                    item[65] = maxDam
                 
-                #With our new min/max, we recalculate sides/dice/correction
-                damWindow = maxDam - minDam
-                dice = 1
-                sides = 1
-                factors = eld.DiceTo127[damWindow]
-                pair = random.choice(factors)
-                dice = pair[0]
-                sides = pair[1]
-                corr = maxDam - (dice*sides)
-                
-
-            
-                item[61] = sides
-                item[62] = dice
-                item[63] = corr
-            
-                #Min,Max damage values are display-only
-                #We calc them here based off the sides/dice/correction values
-                item[64] = minDam
-                item[65] = maxDam
                 #Strikes capped at 10
                 item[66] = min(max(strikes + random.randint(-strikeFac,strikeFac),1),10)
         
-        
-        #adding negative modifiers
+        #Blursed items
         '''
-        z = 0
-        nerfTypes = []
-        availTypes = [1,2,3,4,7]#maybe let user select which ones are available
-        #7 = no Forging
-        while z < negSpecialCap:
-            if random.randrange(specialChance) == 0:
-                nerf = random.choice[availTypes]
-                nerfTypes.append(nerf)
-                availTypes.remove(nerf)
+        if settings['iBlurseChance'] > random.randint(0,99):
+            boons = []
+            banes = []
+            boonCount = int(settings['iBonusCount'])
+            baneCount = int(settings['iMalusCount'])
+            fillBoonBaneList(boons,boonCount,eld.BoonList)
+            fillBoonBaneList(banes,boonCount,eld.BaneList)
+            
+            for b in banes:
+                applyBoon(item,b)
+            for n in banes:
+                applyBane(item,n)
         '''
-        #Then run through every type in nerfTypes
-        
-        
-        #For adding special abilities/attributes
-        '''
-        k = 0
-        specialTypes = [0,1,2,3,4,5,6]
-        for x in nerfTypes:
-            specialTypes.remove(x)
-            while k < specialCap:
-                if random.randrange(specialChance) == 0:
-                    special = random.randrange(0,5)
-                    if special == 0:#Recovery Rate
-                        recoverySize = random.randint(30,65)
-                        item[59] = max(recoverySize,int(item[59]))
-                    if special == 1:#HP Regen
-                        regenSize = random.randint(2,50)
-                        if random.randrange(8) == 0:
-                            regenSize = -regenSize
-                k += 1
-        '''
+
         
         #Randomizing HP Regen
         #Always vary if regen is nonzero; otherwise, chance to obtain regen (or hp leak)
@@ -722,17 +731,6 @@ def randoItems(settings):
             regMax = regen + int(abs(regen/2))
             regen = random.randint(regMin,regMax)
             item[56] = regen
-        
-        #Randomizing Spell school resistances
-        
-        #Randomizing Elemental attributes
-              
-        #Randomizing Ailment attributes
-        
-        #Randomizing Effectiveness
-        #either random to change, or shuffle between all
-        
-        #Range
         
         
         #Randomizing item spellcasting
@@ -1036,7 +1034,6 @@ def randoClasses(settings):
     saveToCSV(mpFile,"SPMP.csv")
     
 
-
 def randoMonsters(settings):
     '''Shuffles enemies.
     Equipment, stats, spells and status ailments are modified based
@@ -1071,9 +1068,12 @@ def randoMonsters(settings):
             slotLevel = levelList[mList[x]]
             mLevel = int(mEntry[13])
             mEntry[13] = slotLevel
+            levelDiff = slotLevel - mLevel
             
             oldHP = max(int(mEntry[23]),8)
             newHP = getLevelScaledStat(mLevel**1.08,slotLevel**1.08,oldHP)
+            if slotLevel < 11 and newHP > eld.EarlyHPCaps[slotLevel-1]:
+                newHP = random.randint(slotLevel*4,eld.EarlyHPCaps[slotLevel-1])
             mEntry[23] = newHP
             if int(slotEntry[22]) > 0:#Minibosses, etc
                 mEntry[22] = newHP
@@ -1082,17 +1082,19 @@ def randoMonsters(settings):
             #For other stats - maybe by square root of the ratio?
             
             #For AC; 0.363 based on trend of AC values in vanilla game
-            #RN no special accounting for Natural AC monsters
-            ACMod = math.floor((min(mLevel,200) - min(slotLevel,200))*0.363) + random.randint(-2,2)
+            #Enemies with Lower AC get slighter scaling
+            acScaling = 0.363
+            if '21' in mEntry[243:251]: acScaling = 0.2
+            ACMod = math.floor((min(mLevel,200) - min(slotLevel,200))*acScaling) + random.randint(-2,2)
             #Accounting for very early monsters having bad AC
             if slotLevel < 5:
                 ACMod += 2
             if mLevel < 5:
-                ACMod -= random.randint(1,3)
-            mEntry[24] = int(mEntry[24]) + int(ACMod)
+                ACMod -= 2
+            mEntry[24] = max(min(int(mEntry[24]) + int(ACMod),15),-70)
             
             #For # of Actions and recovery rate; scale up and down slightly by level
-            #Could have options instead of flat 60 value?
+            #Could have options instead of flat 50 value?
             mActions = int(mEntry[39])
             mRecovery = int(mEntry[255])
             thresh = min(slotLevel + 1, 201)#so that Divine Dragon slot doesn't have 10 actions or w/e
@@ -1146,7 +1148,7 @@ def randoMonsters(settings):
                     checkSpellPerm(slotLevel,s,mEntry)
             
             #For Summon Resistance
-            if int(slotEntry[254]) == 100:
+            if int(slotEntry[254]) >= 100:
                 mEntry[254] = 100
             else:
                 mEntry[254] = getNewSummonResist(slotLevel,int(mEntry[14])-13)
@@ -1155,6 +1157,26 @@ def randoMonsters(settings):
             if int(mEntry[256]) != 0:
                 newRegen = getLevelScaledStat(mLevel**1.08,slotLevel**1.08,int(mEntry[256]),clamp=False)
                 mEntry[256] = newRegen
+                
+            #For Weapon/Armor Break
+            #If final level is 6 or below, remove break
+            if slotLevel < 7:
+                mEntry[258] = 0
+                mEntry[259] = 0
+            
+            #Otherwise, chance add or remove based on magnitude of level difference
+            elif levelDiff > 0:
+                if levelDiff > random.randint(6,1006):
+                    mEntry[258] = 1
+                if slotLevel - mLevel > random.randint(6,1006):
+                    mEntry[259] = 1
+            elif levelDiff < 0:
+                if -levelDiff > random.randint(6,1006):
+                    mEntry[258] = 1
+                if -levelDiff > random.randint(6,1006):
+                    mEntry[259] = 1
+                
+
             
             #For Status Attack/Defence
             thresh = min(slotLevel,200)
@@ -1199,7 +1221,7 @@ def randoMonsters(settings):
                     #print("Boosted Strength for {0} by {1}".format(mEntry[6],strBoost))
                 elif (mLevel - slotLevel) > 7:
                     strPenalty = (mLevel - slotLevel) // 8
-                    mEntry[25] = max(int(mEntry[25]) - strPenalty,1)
+                    mEntry[25] = max(int(mEntry[25]) - strPenalty,2)
                     #print("Reduced Strength for {0} by {1}".format(mEntry[6],strPenalty))
             
             
@@ -1212,6 +1234,44 @@ def randoMonsters(settings):
     saveToCSV(newMFileA,"MONSTER1.csv")
     saveToCSV(newMFileB,"MONSTER2.csv")
     saveToCSV(newMFileC,"MONSTER3.csv")
+    
+
+def fillBoonBaneList(destList,count,modSet):
+    #Fill destList with count randomly-selected unique values from modSet.
+    for i in range(count):
+        newMod = random.choice(modSet)
+        while modSet.count(newMod) > 0:
+            modSet.remove(newMod)
+        destList.append(newMod)
+        
+def applyBoon(item,boonType):
+    #Improve specified aspect of given item
+    if boonType < 2:#Elemental Attack/Defense Boost
+        elemCount = random.choice([2,3,4,4,5,5,6,7,8,9,10,11,12,13,14,15])
+        indexes = random.choices([0,1,2,3,4],k=elemCount)
+        offset = 87#Elemental Attack
+        if boonType == 1: offset = 92#Elemental Defense
+        for e in indexes:
+            elemBoost = random.randint(1,3) * 5
+            item[offset+e] = min(int(item[87+e]) + elemBoost,300)
+    elif boonType < 4:#Status Attack/Defense boost
+        statusCount = random.choice([1,1,1,1,1,2,2,3,4])
+        statuses = random.sample([0,1,2,3,4,5,6,7],k=statusCount)
+        offset = 99
+        multiplier = 1
+        if boonType == 3:#Status Defence
+            offset = 106
+            multiplier = 1
+        for s in statuses:
+            item[offset + s] = min(int(item[offset+s]) + (random.randint(1,10) * eld.StatusAttackPower[s]),99)
+    elif boonType == 4:#Effective
+        numMult = random.choice([1,1,2,2,2,3,3,4,5,6,7,8,9])
+        families = random.sample(range(16),k=numMult)
+        for f in families:
+            effMult = 8#1.5x
+            if random.randint(0,3000) == 0: effMult = 7#10x
+            elif random.randint(0,2000) == 0: effMult = 6#5x
+            elif random.randint(0,1000) == 0: effMult = 5#3x
     
 
 def addMastery(skillArray,skill,limit):
@@ -1365,6 +1425,30 @@ def getNewSummonResist(level,family):
         if random.randint(0,2) == 0:
             resist += 10
     return min(95,resist)
+    
+def addActorSkill(skill,skList):
+    '''Adds specified skill to actor.
+    Returns True if successful; returns False if not
+    (for example, skill is already present or skill list is full)
+    Expects, but does not require string input for "skill".'''
+    if skill in skList:
+        return False
+    for s in range(8):
+        if int(skList[s]) == 0:
+            skList[s] = int(skill)
+            return true
+    return False
+    
+def removeActorSkill(skill,skList):
+    '''Removes specified skill.
+    Returns True if successful, False if skill was not present.'''
+    key = int(skill)
+    for s in range(8):
+        if int(skList[s]) == key:
+            skList[s] = 0
+            return True
+    return False
+    
 
 
 def getMonsterCol(mFiles,mID):

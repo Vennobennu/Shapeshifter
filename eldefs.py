@@ -153,6 +153,20 @@ SpellUse = [1,1,2,
     1,1,1,3,
     1,1,2,
     1,0,2]
+    
+    
+#Elem attack, Elem Def, Status Attack, Status Def, Effective, Recov.Rate, HP Regen, Range, Lowered AC
+BoonList = [0,0,1,1,2,2,3,3,4,4,5,6,7,8]
+
+#Elem Def, Status Def, Effective, HP Leak, Curse, Forging, Gender/Race/Alignment rest.
+BaneList = [0,0,1,1,2,2,3,3,4,5,6]
+
+
+ElemCounts = [1,1,2,2,3,3,3,4,4,5,5,6,7,8,9,10]
+
+#Defining power levels of status attacks as spplied to weapons/armor
+#Sleep, Poison, Paralysis, Silence, Confusion, Charm, Petrify, Behead, in that order
+StatusAttackPower = [8,7,5,9,7,5,4,3]
 
 
 #indicating what natural weapons enemies should receive based on their level
@@ -169,7 +183,7 @@ Swords = [19,14,1,6,15,2,20,16,21,8,25,321,18,17,3,22,7,12,9,5,4,23,26,10,24,13,
 #For these groups, if in Sub-slot, reduce bracket by 1
 Swords_2H = [1,1,27,29,28,34,33,30,38,31,35,36,38,30]
 Daggers = [45,40,41,47,42,48,322,322,51,43,49,49,52,50]
-WeakSpears = [97,97,97,97,106,110,98,107,109,103,116,116,114,114]
+WeakSpears = [97,97,97,97,106,110,98,107,109,103,116,116,117,114]
 Spears = [105,105,92,93,112,99,113,100,94,95,96,96,104,115]
 Hammers = [144,144,144,145,151,149,147,147,146,148,148,148,152,152]
 Maces = [170,157,171,158,173,172,159,168,160,161,179,166,182,167]
@@ -304,8 +318,12 @@ RestrictedMonsters = [0,21,51,93,184,262,280,282,285,289,290,291,296,325,326,327
     
 #I think large floating monsters cause crashes when put in large formations
 #So let's keep them separate
-FloatingMonsters = [2,5,7,10,11,12,13,14,15,16,25,34,35,37,45,47,48,52,54,55,59,60,61,62,63,74,75,76,77,80,83,88,90,92,96,100,103,106,113,115,118,120,124,128,129,132,133,136,163,164,192,193,194,205,209,211,214,245,250,261,263,268,269,270,276,282,286,290,291,297,298,299,300,301,302,303,306,308,311,314,318,335,342,350,364,365,368,369,370,371,372,382,386,398]
+#not including Spore Balls and Hobbling Strow
+FloatingMonsters = [5,7,10,11,12,13,14,15,16,25,34,35,37,45,47,48,52,54,55,59,60,61,62,63,74,75,76,77,83,88,90,92,96,100,103,106,113,115,118,120,124,128,129,132,133,136,163,164,192,193,194,205,209,211,214,245,250,261,263,268,269,270,276,282,286,290,291,297,298,299,300,301,302,303,306,308,311,314,318,335,342,350,364,365,368,369,370,371,372,382,386,398]
 
+
+#HP caps for early monsters; levels 1-10
+EarlyHPCaps = [16,30,52,54,60,72,78,84,130,200]
 
 #individual tables of summon resistances - values selected based on level
 S_Tiny = [10,10,20,60]
@@ -437,7 +455,7 @@ MonsterSpellLevels = [
     (0,999,0,0),    #Nap (heals user but puts to sleep)
     (10,80,0,108),  #Lullaby
     (10,200,0,108), #Nightmare
-    (7,18,1,21),    #Holmic Gate - repurposing this as a weaker Enterook Mista
+    (11,21,4,21),   #Holmic Gate - repurposing this as a weaker Enterook Mista
     (15,60,0,108),  #Mind Crush
     (14,999,0,0),   #Soul Trap
     (0,999,0,0),    #Old Aim
